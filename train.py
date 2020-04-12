@@ -2,17 +2,17 @@ import datetime
 import os
 
 from keras import backend as K
-from keras import Input, Model
+from keras import Input, Model, losses
 from keras.layers import Conv2D, MaxPooling2D, Reshape, Lambda, Activation, concatenate, Dense, GRU, add
 from keras.optimizers import SGD
 from keras.utils import get_file
 
 from lib.constants import OUTPUT_DIR
 from lib.image_text_generator import TextImageGenerator
-from lib.visual_callback import ctc_lambda_func, VizCallback
+from lib.visualisation_callback import ctc_lambda_func, VizCallback
 
 
-def train(run_name, start_epoch, stop_epoch, img_w):
+def train(run_name, start_epoch, stop_epoch, img_w, save_path):
     # Input Parameters
     img_h = 64
     words_per_epoch = 16000
@@ -102,7 +102,9 @@ def train(run_name, start_epoch, stop_epoch, img_w):
                   outputs=loss_out)
 
     # the loss calc occurs elsewhere, so use a dummy lambda func for the loss
-    model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=sgd)
+    model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, 
+        optimizer=sgd,
+        metrics=['accuracy'])
     if start_epoch > 0:
         weight_file = os.path.join(
             OUTPUT_DIR,
@@ -120,12 +122,28 @@ def train(run_name, start_epoch, stop_epoch, img_w):
         validation_data=img_gen.next_val(),
         validation_steps=val_words // minibatch_size,
         callbacks=[viz_cb, img_gen],
-        initial_epoch=start_epoch)
+        initial_epoch=start_epoch,
+        verbose=1)
+
+    if save_path:
+        predict_model = Model(inputs=input_data, outputs=y_pred)
+        predict_model.save(save_path)
 
 
 if __name__ == '__main__':
     run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
-    train(run_name, 0, 20, 128)
+    train(
+        run_name=run_name, 
+        start_epoch=0, 
+        stop_epoch=20, 
+        img_w=128,
+        save_path=False)
     # increase to wider images and start at epoch 20.
     # The learned weights are reloaded
-    train(run_name, 20, 25, 512)
+    train(
+        run_name=run_name, 
+        start_epoch=20, 
+        stop_epoch=25, 
+        img_w=512, 
+        save_path="image_ocr_model_v2.h5")
+    
