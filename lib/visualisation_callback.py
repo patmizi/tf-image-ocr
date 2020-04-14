@@ -3,15 +3,17 @@
 import itertools
 import os
 
-import editdistance
-import keras
 import pylab
+from keras.callbacks import callbacks
 from pandas import np
 from keras import backend as K
 
 from lib.constants import OUTPUT_DIR
 from lib.utils.image_utils import labels_to_text
 
+
+# the actual loss calc occurs here despite it not being
+# an internal Keras loss function
 
 def ctc_lambda_func(args):
     y_pred, labels, input_length, label_length = args
@@ -35,7 +37,7 @@ def decode_batch(test_func, word_batch):
     return ret
 
 
-class VizCallback(keras.callbacks.Callback):
+class VizCallback(callbacks.Callback):
 
     def __init__(self, run_name, test_func, text_img_gen, num_display_words=6):
         self.test_func = test_func
@@ -46,31 +48,10 @@ class VizCallback(keras.callbacks.Callback):
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
-    def show_edit_distance(self, num):
-        num_left = num
-        mean_norm_ed = 0.0
-        mean_ed = 0.0
-        while num_left > 0:
-            word_batch = next(self.text_img_gen)[0]
-            num_proc = min(word_batch['the_input'].shape[0], num_left)
-            decoded_res = decode_batch(self.test_func,
-                                       word_batch['the_input'][0:num_proc])
-            for j in range(num_proc):
-                edit_dist = editdistance.eval(decoded_res[j],
-                                              word_batch['source_str'][j])
-                mean_ed += float(edit_dist)
-                mean_norm_ed += float(edit_dist) / len(word_batch['source_str'][j])
-            num_left -= num_proc
-        mean_norm_ed = mean_norm_ed / num
-        mean_ed = mean_ed / num
-        print('\nOut of %d samples:  Mean edit distance:'
-              '%.3f Mean normalized edit distance: %0.3f'
-              % (num, mean_ed, mean_norm_ed))
-
     def on_epoch_end(self, epoch, logs={}):
-        self.model.save_weights(
-            os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
-        self.show_edit_distance(256)
+        weight_file = os.path.join(self.output_dir, 'weights%02d.h5' % (epoch))
+        self.model.save_weights(weight_file)
+        print("save_weight: ", weight_file)
         word_batch = next(self.text_img_gen)[0]
         res = decode_batch(self.test_func,
                            word_batch['the_input'][0:self.num_display_words])
@@ -86,8 +67,8 @@ class VizCallback(keras.callbacks.Callback):
                 the_input = word_batch['the_input'][i, :, :, 0]
             pylab.imshow(the_input.T, cmap='Greys_r')
             pylab.xlabel(
-                'Truth = \'%s\'\nDecoded = \'%s\'' %
-                (word_batch['source_str'][i], res[i]))
+                'Truth = \'{}\'\nPredict = \'{}\' ({})'
+                .format(word_batch['source_str'][i], res[i], word_batch['source_str'][i] == res[i]))
         fig = pylab.gcf()
         fig.set_size_inches(10, 13)
         pylab.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))

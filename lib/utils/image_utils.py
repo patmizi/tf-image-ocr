@@ -107,11 +107,3 @@ def labels_to_text(labels):
         else:
             ret.append(constants.ALPHABET[c])
     return "".join(ret)
-
-
-# only a-z and space..probably not to difficult
-# to expand to uppercase and symbols
-
-def is_valid_str(in_str):
-    search = re.compile(constants.REGEX_PATTERN, re.UNICODE).search
-    return bool(search(in_str))
