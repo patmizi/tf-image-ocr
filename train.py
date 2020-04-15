@@ -136,7 +136,7 @@ def train(run_name, start_epoch, stop_epoch, img_w, build_word_count,
 if __name__ == '__main__':
     RUN_NAME = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     # RUN_NAME = "EnglishWord_GRU"
-    SAVE_MODEL_PATH = "./model/image_ocr_word.h5"
+    SAVE_MODEL_PATH = "model/image_ocr_word-01.h5"
     train(run_name=RUN_NAME,
           start_epoch=0,
           stop_epoch=12,
